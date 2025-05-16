@@ -1,0 +1,467 @@
+<html>
+    <head>
+        <meta property="og:type" content="Yaga" />
+        <meta property="og:title" content="Yaga Turbo Game" />
+        <meta property="og:url" content="https://yagaturbo.netlify.app/" />
+        <meta
+            property="og:image"
+            content="https://yagaturbo.netlify.app/icon.png"
+        />
+        <meta
+            property="og:description"
+            content="Monad Game"
+        />
+        <meta
+            property="fc:frame"
+            content='{
+                "version": "next",
+                "imageUrl": "https://yagaturbo.netlify.app/horse1.png",
+                "button": {
+                    "title": "Launch Game",
+                    "action": {
+                        "type": "launch_frame",
+                        "name": "Play Game",
+                        "url": "https://yagaturbo.netlify.app/",
+                        "splashImageUrl": "https://yagaturbo.netlify.app/horse1.png",
+                        "splashBackgroundColor": "#1e0127"
+                    }
+                }
+            }'
+        />
+
+      <style>
+    body {
+      margin: 0;
+      background: #111;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      display: block;
+      margin: 0 auto;
+      background: #333;
+      border: 2px solid #fff;
+      width: 100%;
+      height: auto;
+    }
+    #startBtn {
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 15px 20px;
+      font-size: 24px;
+      cursor: pointer;
+      background: #732d91;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      z-index: 10;
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 24px;
+      color: white;
+      z-index: 10;
+    }
+    #gameCanvas {
+  border: 2px dashed red; /* visible area */
+    }
+
+ #gameOverScreen {
+  display: none;
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  text-align: center;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 20px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 250px;
+  z-index: 15;
+}
+
+#gameOverMessage {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 28px;
+  font-weight: bold;
+  text-align: center;
+  display: none;
+  z-index: 16;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 20px 40px;
+  border-radius: 12px;
+  border: 2px solid #fff;
+}
+
+#finalScoreText {
+  font-size: 24px;
+  margin-bottom: 50px;
+}
+
+#walletInput {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+  margin-bottom: 10px;
+}
+
+#claimBtn {
+  padding: 12px 24px;
+  background: #732d91;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#claimBtn:hover {
+  background: #5a2170;
+}
+
+
+
+  </style>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/npm/@farcaster/frame-sdk/dist/index.min.js"></script>
+  <script>
+    frame.sdk.actions.ready();
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+  <button id="startBtn">Start Game</button>
+  <div id="score">Score: 0</div>
+  <canvas id="gameCanvas"></canvas>
+  <div id="gameOverMessage">Your final score: 0</div>
+
+<div id="gameOverScreen" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:white; text-align:center;">
+  <h2 id="finalScoreText">Your Score: 0</h2>
+  <input id="walletInput" placeholder="Enter your wallet address" style="padding:10px; width:80%; margin-bottom:10px;" />
+  <button id="claimBtn" style="padding:10px 20px; background:#732d91; color:white; border:none; border-radius:5px;">Claim MON</button>
+</div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startBtn');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+const finalScoreText = document.getElementById('finalScoreText');
+const walletInput = document.getElementById('walletInput');
+const claimBtn = document.getElementById('claimBtn');
+    const scoreEl = document.getElementById('score');
+    const bgMusic = new Audio('roadrage.mp3');
+bgMusic.loop = true;
+const coinSound = new Audio('coin.mp3');
+const crashSound = new Audio('crash.mp3');
+
+
+    let lanes = [];
+    let biker, bikerImg, roadblockImg, rewardImg;
+    let obstacles = [];
+    let rewards = [];
+    let score = 0;
+    let speed = 2;
+    let gameInterval, obstacleInterval, rewardInterval, speedInterval;
+    let gameRunning = false;
+
+function resizeCanvas() {
+  const ratio = window.devicePixelRatio || 1;
+
+  // canvas responsiveness
+  const viewportWidth = window.innerWidth;
+  const gameWidth = Math.max(Math.min(viewportWidth * 0.95, 300), 280); // min 280, max 300
+  const gameHeight = gameWidth * 1.5;
+
+  canvas.width = gameWidth * ratio;
+  canvas.height = gameHeight * ratio;
+  canvas.style.width = `${gameWidth}px`;
+  canvas.style.height = `${gameHeight}px`;
+
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  // Update lane positions
+  lanes = [
+    gameWidth / 3 * 0.5,
+    gameWidth / 3 * 1.5,
+    gameWidth / 3 * 2.5
+  ];
+
+  if (biker) {
+    biker.x = lanes[biker.lane];
+    biker.y = canvas.height / ratio - 100;
+  }
+}
+
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function loadImages() {
+      bikerImg = new Image();
+      bikerImg.src = 'bikerman.png';
+      roadblockImg = new Image();
+      roadblockImg.src = 'Roadblock.png';
+      rewardImg = new Image();
+      rewardImg.src = 'reward.png';
+    }
+
+    function startGame() {
+        bgMusic.currentTime = 0;
+bgMusic.play();
+      startBtn.style.display = 'none';
+      score = 0;
+      speed = 2;
+document.getElementById('gameOverMessage').style.display = 'none';
+document.getElementById('gameOverScreen').style.display = 'none';
+
+biker = {
+  x: lanes[1],
+  y: canvas.height / window.devicePixelRatio - 100,
+  lane: 1,
+  width: 40,
+  height: 64
+};
+      obstacles = [];
+      rewards = [];
+      gameRunning = true;
+
+      gameInterval = requestAnimationFrame(updateGame);
+      obstacleInterval = setInterval(spawnObstacle, 2300);
+      rewardInterval = setInterval(spawnReward, 800);
+      speedInterval = setInterval(() => speed += 0.7, 5000);
+    }
+
+    function spawnObstacle() {
+      const lane = Math.floor(Math.random() * 3);
+      obstacles.push({
+        x: lanes[lane],
+        y: -80,
+        width: 50,
+        height: 80
+      });
+    }
+
+    function spawnReward() {
+      const lane = Math.floor(Math.random() * 3);
+      rewards.push({
+        x: lanes[lane] + 10,
+        y: -50,
+        width: 30,
+        height: 30
+      });
+    }
+
+    function updateGame() {
+      if (!gameRunning) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // lane dividers
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 10]);
+      for (let i = 1; i < 3; i++) {
+        const x = (canvas.width / window.devicePixelRatio / 3) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height / window.devicePixelRatio);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+
+      // Draw biker
+      ctx.drawImage(bikerImg, biker.x, biker.y, biker.width, biker.height);
+
+      // Move & draw obstacles
+      for (let i = 0; i < obstacles.length; i++) {
+        const ob = obstacles[i];
+        ob.y += speed;
+        ctx.drawImage(roadblockImg, ob.x, ob.y, ob.width, ob.height);
+
+        if (isColliding(biker, ob)) {
+            setTimeout(() => {
+  crashSound.pause();
+  crashSound.currentTime = 0;
+}, 500);
+          endGame();
+          return;
+        }
+      }
+
+      // Move & draw rewards
+      for (let i = rewards.length - 1; i >= 0; i--) {
+        const rw = rewards[i];
+        rw.y += speed;
+        ctx.drawImage(rewardImg, rw.x, rw.y, rw.width, rw.height);
+
+        if (isColliding(biker, rw)) {
+          score += 10;
+          scoreEl.textContent = "Score: " + score;
+          rewards.splice(i, 1);
+        coinSound.currentTime = 0;
+        coinSound.play();
+        }
+      }
+
+      gameInterval = requestAnimationFrame(updateGame);
+    }
+
+    function isColliding(a, b) {
+      return (
+        a.x < b.x + b.width &&
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y
+      );
+    }
+
+    function endGame() {
+  gameRunning = false;
+  cancelAnimationFrame(gameInterval);
+  clearInterval(obstacleInterval);
+  clearInterval(rewardInterval);
+  clearInterval(speedInterval);
+
+  finalScoreText.textContent = "Your Score: " + score;
+  gameOverScreen.style.display = 'block';
+  startBtn.style.display = 'block';
+  scoreEl.textContent = "Score: 0";
+}
+
+claimBtn.addEventListener('click', async () => {
+  const address = walletInput.value.trim();
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    alert("Invalid wallet address");
+    return;
+  }
+
+  const contractAddress = "0x5bE6beaD9B2d64420779966cB1F05c82C645c713";
+  const abi = [
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "score",
+				"type": "uint256"
+			}
+		],
+		"name": "claim",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"inputs": [],
+		"name": "withdraw",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "claimed",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+
+  if (window.ethereum) {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    const signer = provider.getSigner();
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+
+    try {
+      const tx = await contract.claim(score);
+      await tx.wait();
+      alert("Claimed MON successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Claim failed");
+    }
+  } else {
+    alert("No wallet detected");
+  }
+});
+
+    document.addEventListener('keydown', (e) => {
+      if (!gameRunning) return;
+      if (e.key === "ArrowLeft" && biker.lane > 0) {
+        biker.lane -= 1;
+        biker.x = lanes[biker.lane];
+      }
+      if (e.key === "ArrowRight" && biker.lane < 2) {
+        biker.lane += 1;
+        biker.x = lanes[biker.lane];
+      }
+    });
+
+    let touchStartX = null;
+    document.addEventListener('touchstart', e => {
+      touchStartX = e.changedTouches[0].screenX;
+    });
+    document.addEventListener('touchend', e => {
+      if (!gameRunning) return;
+      let deltaX = e.changedTouches[0].screenX - touchStartX;
+      if (deltaX > 50 && biker.lane < 2) {
+        biker.lane += 1;
+        biker.x = lanes[biker.lane];
+      } else if (deltaX < -50 && biker.lane > 0) {
+        biker.lane -= 1;
+        biker.x = lanes[biker.lane];
+      }
+    });
+
+    startBtn.addEventListener('click', startGame);
+    loadImages();
+  </script>
+</body>
+</html>
