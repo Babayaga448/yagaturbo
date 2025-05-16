@@ -1,0 +1,18 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjEwNzQxNDEsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHhFN2VCOEVBOWFmMmVERjZjNkFlODU1RjgzYzg5MWNENWFiODkwZDY2In0",
+    "payload": "eyJkb21haW4iOiJ5YWdhdHVyYm8ubmV0bGlmeS5hcHAifQ",
+    "signature": "MHg5YmJjMDNkMTZmMDJlODIyNzc5OTE1MTIwMTliMDI1NGI0NWU3YjE2OWIwYjRhNTcxZDRmMTBmMTk0NTdiYWZmNjhiNmUwMGE4YTQ1MWU4YzMyZjMyOWFkZWVkODUyMTVmYWI1MTAyYjA1MjFjZjM2NzdkYmRiMWMwMjRiMGM4MDFi"
+  },
+  "frame": {
+    "version": "1",
+    "name": "Yaga Turbo",
+    "iconUrl": "https://yagaturbo.netlify.app/icon.png",
+    "homeUrl": "https://yagaturbo.netlify.app/",
+    "imageUrl": "https://yagaturbo.netlify.app/image.png",
+    "buttonTitle": "Check this out",
+    "splashImageUrl": "https://yagaturbo.netlify.app/horse1.png",
+    "splashBackgroundColor": "#1e0127",
+    "webhookUrl": "https://yagaturbo.netlify.app/api/webhook"
+  }
+}
